@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation';
 import { 
   Sparkles, X, Send, Bot, User, ArrowRight, ExternalLink, 
   FileText, MapPin, BarChart3, ShieldCheck, Database, HelpCircle,
-  Compass, Zap, CornerDownLeft, RefreshCw, ChevronRight, Layers
+  Compass, Zap, CornerDownLeft, RefreshCw, ChevronRight, Layers, Globe
 } from 'lucide-react';
 import { useCopilot } from '@/lib/copilot-context';
 import { useToast } from '@/lib/toast';
+import { resolveUniversalQuery } from '@/lib/intelligence-engine';
 
 type ActionLink = {
   label: string;
@@ -215,7 +216,7 @@ export default function CopilotAssistant() {
     };
   };
 
-  const handleSendMessage = (textToSend?: string) => {
+  const handleSendMessage = async (textToSend?: string) => {
     const queryText = (textToSend || inputValue).trim();
     if (!queryText) return;
 
@@ -230,22 +231,44 @@ export default function CopilotAssistant() {
     setInputValue('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      const resp = generateAnswer(queryText);
+    try {
+      const response = await resolveUniversalQuery(queryText);
       const assistantMsg: Message = {
         id: `a-${Date.now()}`,
         sender: 'assistant',
-        text: resp.text,
-        bullets: resp.bullets,
-        actionLinks: resp.actionLinks,
+        text: response.answer,
+        bullets: response.derivation.slice(0, 3),
+        actionLinks: (response.actionLinks || []).map(l => ({
+          label: l.label,
+          url: l.url,
+          icon: l.url.startsWith('http') ? 'ExternalLink' : l.url.includes('data-hub') ? 'Database' : 'FileText'
+        })),
         timestamp: 'Just now',
       };
       setMessages(prev => [...prev, assistantMsg]);
+    } catch (err) {
+      console.error('Copilot universal resolution error:', err);
+      const fallbackResp = generateAnswer(queryText);
+      const assistantMsg: Message = {
+        id: `a-${Date.now()}`,
+        sender: 'assistant',
+        text: fallbackResp.text,
+        bullets: fallbackResp.bullets,
+        actionLinks: fallbackResp.actionLinks,
+        timestamp: 'Just now',
+      };
+      setMessages(prev => [...prev, assistantMsg]);
+    } finally {
       setIsTyping(false);
-    }, 450);
+    }
   };
 
   const handleActionClick = (url: string) => {
+    if (url.startsWith('http')) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      showToast('Opening verified source on Wikipedia...', 'info');
+      return;
+    }
     showToast('Navigating to requested workspace...', 'info');
     router.push(url);
   };

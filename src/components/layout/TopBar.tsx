@@ -11,6 +11,7 @@ import {
 import { cilSubsidiaries, associatedCoalEntities, subsidiaries, auditLog } from '@/lib/mock-data';
 import { useDocuments } from '@/lib/documents-context';
 import { useCopilot } from '@/lib/copilot-context';
+import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/lib/toast';
 import { exportToCsv } from '@/lib/export-utils';
 
@@ -51,6 +52,7 @@ export default function TopBar() {
   const router = useRouter();
   const { documents } = useDocuments();
   const { toggleCopilot } = useCopilot();
+  const { user, isAdmin, switchToOfficer, logout } = useAuth();
   const { showToast } = useToast();
   const [subsidiary, setSubsidiary] = useState('All Subsidiaries');
   const [notifOpen, setNotifOpen] = useState(false);
@@ -381,28 +383,6 @@ export default function TopBar() {
         )}
       </div>
 
-      {/* Ask Copilot Button */}
-      <button
-        onClick={toggleCopilot}
-        className="btn btn-secondary"
-        style={{
-          height: 32,
-          padding: '0 12px',
-          fontSize: '0.75rem',
-          gap: 6,
-          borderColor: 'rgba(181, 101, 29, 0.45)',
-          background: 'rgba(181, 101, 29, 0.1)',
-          color: 'var(--copper)',
-          display: 'flex',
-          alignItems: 'center',
-          borderRadius: 3,
-        }}
-        title="Open GeoIntel AI Copilot & Website Guide"
-      >
-        <Sparkles size={13} color="var(--copper)" />
-        <span style={{ fontWeight: 600 }}>Ask Copilot</span>
-      </button>
-
       {/* Notifications */}
       <div style={{ position: 'relative' }} data-notif-panel>
         <button
@@ -477,14 +457,17 @@ export default function TopBar() {
           onClick={() => { setProfileOpen(v => !v); setNotifOpen(false); }}
         >
           <div style={{
-            width: 24, height: 24, borderRadius: '50%', background: 'var(--coal-700)',
-            color: 'var(--copper)', fontSize: '0.6875rem', fontWeight: 700,
+            width: 24, height: 24, borderRadius: '50%',
+            background: isAdmin ? 'rgba(181,101,29,0.2)' : 'var(--coal-700)',
+            color: isAdmin ? 'var(--copper)' : 'var(--text-secondary)',
+            fontSize: '0.6875rem', fontWeight: 700,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: isAdmin ? '1px solid var(--copper)' : '1px solid transparent',
           }}>
-            RK
+            {isAdmin ? 'AD' : 'RK'}
           </div>
           <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-primary)' }}>
-            Dr. Rajiv Kumar
+            {isAdmin ? 'Administrator' : 'Dr. Rajiv Kumar'}
           </span>
           <ChevronDown size={11} color="var(--text-muted)" />
         </button>
@@ -492,17 +475,23 @@ export default function TopBar() {
         {profileOpen && (
           <div style={{
             position: 'absolute', top: 44, right: 0,
-            width: 260, background: 'var(--surface-2)',
+            width: 270, background: 'var(--surface-2)',
             border: '1px solid var(--border-light)',
             borderRadius: 4, boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
             zIndex: 200, padding: 6,
           }}>
             <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>Dr. Rajiv Kumar</div>
-              <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>CGM (Geology & IT) · CMPDI Ranchi</div>
+              <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                {isAdmin ? 'Chief System Administrator' : 'Dr. Rajiv Kumar'}
+              </div>
+              <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                {isAdmin ? 'CIL HQ · Full Deletion & Admin Governance' : 'CGM (Geology & IT) · CMPDI Ranchi'}
+              </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                <Shield size={9} color="var(--verified)" />
-                <span style={{ fontSize: '0.625rem', color: 'var(--verified)', letterSpacing: '0.04em' }}>Level 4 Clearance</span>
+                <Shield size={9} color={isAdmin ? 'var(--copper)' : 'var(--verified)'} />
+                <span style={{ fontSize: '0.625rem', color: isAdmin ? 'var(--copper)' : 'var(--verified)', letterSpacing: '0.04em', fontWeight: 600 }}>
+                  {isAdmin ? 'Level 4 Clearance (Admin Purge Active)' : 'Level 2 Clearance (Standard View)'}
+                </span>
               </div>
             </div>
 
@@ -521,6 +510,39 @@ export default function TopBar() {
                 Admin Portal & Profile
               </Link>
 
+              {isAdmin ? (
+                <button
+                  className="btn-ghost"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
+                    width: '100%', fontSize: '0.75rem', color: 'var(--text-secondary)',
+                    borderRadius: 2, textAlign: 'left',
+                  }}
+                  onClick={() => {
+                    switchToOfficer();
+                    setProfileOpen(false);
+                    showToast('Switched to Standard Officer mode (deletion locked)', 'info');
+                  }}
+                >
+                  <Shield size={13} color="var(--text-muted)" />
+                  Switch to Standard Officer View
+                </button>
+              ) : (
+                <Link
+                  href="/login"
+                  className="btn-ghost"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
+                    width: '100%', fontSize: '0.75rem', color: 'var(--copper)', textDecoration: 'none',
+                    borderRadius: 2, textAlign: 'left',
+                  }}
+                  onClick={() => setProfileOpen(false)}
+                >
+                  <Shield size={13} color="var(--copper)" />
+                  Login as Admin (Enable Delete)
+                </Link>
+              )}
+
               <button
                 className="btn-ghost"
                 style={{
@@ -536,19 +558,22 @@ export default function TopBar() {
 
               <div style={{ borderTop: '1px solid var(--border)', margin: '4px 0' }} />
 
-              <Link
-                href="/login"
+              <button
                 className="btn-ghost"
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
-                  width: '100%', fontSize: '0.75rem', color: 'var(--alert)', textDecoration: 'none',
-                  borderRadius: 2,
+                  width: '100%', fontSize: '0.75rem', color: 'var(--alert)',
+                  borderRadius: 2, textAlign: 'left',
                 }}
-                onClick={() => setProfileOpen(false)}
+                onClick={() => {
+                  logout();
+                  setProfileOpen(false);
+                  router.push('/login');
+                }}
               >
                 <LogOut size={13} />
                 Sign Out
-              </Link>
+              </button>
             </div>
           </div>
         )}

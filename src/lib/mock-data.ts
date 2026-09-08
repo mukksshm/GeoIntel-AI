@@ -550,7 +550,7 @@ export type SearchResponse = {
   query: string;
   answer: string;
   insight: { label: string; value: string; change?: string };
-  sources: Array<{ id: number; name: string; page?: number; sheet?: string; row?: number }>;
+  sources: Array<{ id: number; name: string; page?: number; sheet?: string; row?: number; url?: string; isExternal?: boolean }>;
   derivation: string[];
   kpiCards?: Array<{ label: string; value: string; sub?: string; trend?: string }>;
   detailedSections?: Array<{
@@ -572,6 +572,13 @@ export type SearchResponse = {
     crossValidatedSources?: Array<{ name: string; pageOrRow: string }>;
     auditId?: string;
   };
+  wikipediaRef?: {
+    title: string;
+    url: string;
+    description?: string;
+    thumbnail?: string;
+  };
+  actionLinks?: Array<{ label: string; url: string; icon?: string }>;
 };
 
 export const searchResponses: Record<string, SearchResponse> = {

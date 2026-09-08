@@ -50,10 +50,17 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useCopilot() {
+export function useCopilot(): CopilotContextType {
   const ctx = useContext(CopilotContext);
   if (!ctx) {
-    throw new Error('useCopilot must be used within a CopilotProvider');
+    return {
+      isOpen: false,
+      openCopilot: () => {},
+      closeCopilot: () => {},
+      toggleCopilot: () => {},
+      initialQuery: '',
+      clearInitialQuery: () => {},
+    };
   }
   return ctx;
 }

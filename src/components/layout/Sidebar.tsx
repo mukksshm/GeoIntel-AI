@@ -19,7 +19,6 @@ const navItems = [
   { id: '08', label: 'Knowledge Base', icon: BookOpen, href: '/dashboard/knowledge-base' },
   { id: '09', label: 'Audit Trail', icon: Clock, href: '/dashboard/audit-trail' },
   { id: '10', label: 'Admin & Profile', icon: UserCheck, href: '/dashboard/admin' },
-  { id: '11', label: 'Ask AI Assistant', icon: Sparkles, href: '/dashboard/ai-assistant' },
 ];
 
 const systemStatus = [

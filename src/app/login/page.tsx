@@ -21,17 +21,29 @@ export default function LoginPage() {
     }
     setLoading(true);
     setError('');
-    await new Promise(r => setTimeout(r, 1400));
-    router.push('/dashboard/overview');
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPass = password.trim();
+
+    if (
+      (cleanEmail === 'admin@coalindia.in' || cleanEmail === 'admin') &&
+      cleanPass === 'admin123'
+    ) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('geointel_auth_role_v1', 'admin');
+      }
+    } else {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('geointel_auth_role_v1', 'officer');
+      }
+    }
+
+    await new Promise(r => setTimeout(r, 900));
+    router.push('/dashboard/data-hub');
   };
 
-  const handleDemo = async () => {
-    setEmail('rajiv.kumar@coalindia.in');
-    setPassword('••••••••');
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 900));
-    router.push('/dashboard/overview');
-  };
+
+
 
   return (
     <div style={{ 
@@ -250,18 +262,30 @@ export default function LoginPage() {
               </>
             ) : 'Sign In'}
           </button>
-
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, textAlign: 'center' }}>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              style={{ width: '100%', justifyContent: 'center', fontSize: '0.8125rem', color: 'var(--copper)' }}
-              onClick={handleDemo}
-            >
-              Demo Access (Authorized Officer)
-            </button>
-          </div>
         </form>
+
+        {/* Credentials reminder */}
+        <div style={{
+          marginTop: 24,
+          padding: '12px 14px',
+          background: 'rgba(181, 101, 29, 0.08)',
+          border: '1px solid rgba(181, 101, 29, 0.25)',
+          borderRadius: 4,
+          fontSize: '0.75rem',
+          lineHeight: 1.5,
+        }}>
+          <div style={{ fontWeight: 600, color: 'var(--copper)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Shield size={13} />
+            Data Hub Deletion Authorization Credentials:
+          </div>
+          <div style={{ color: 'var(--text-secondary)' }}>
+            <strong>Admin ID:</strong> <code style={{ color: 'var(--text-primary)', background: 'rgba(0,0,0,0.3)', padding: '1px 5px', borderRadius: 3 }}>admin@coalindia.in</code><br />
+            <strong>Password:</strong> <code style={{ color: 'var(--text-primary)', background: 'rgba(0,0,0,0.3)', padding: '1px 5px', borderRadius: 3 }}>admin123</code>
+          </div>
+          <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: 4 }}>
+            Only Admin credentials have permission to delete files from the Data Hub.
+          </div>
+        </div>
 
         <div style={{ 
           marginTop: 32,

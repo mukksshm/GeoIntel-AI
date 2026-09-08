@@ -6,9 +6,10 @@ import { useRouter } from 'next/navigation';
 import { 
   Search, ChevronRight, ExternalLink, CheckCircle, ArrowRight, 
   TrendingUp, FileText, Download, ShieldCheck, RefreshCw, X, Copy,
-  Layers, Award, Zap, Database
+  Layers, Award, Zap, Database, Globe, Sparkles, BookOpen
 } from 'lucide-react';
 import { searchResponses, SearchResponse, resolveStateQuery } from '@/lib/mock-data';
+import { resolveUniversalQuery } from '@/lib/intelligence-engine';
 import { useToast } from '@/lib/toast';
 import { exportToPdf, exportToDocx } from '@/lib/export-utils';
 import SourceTraceabilityModal, { SourceTraceItem } from '@/components/SourceTraceabilityModal';
@@ -153,42 +154,19 @@ export default function AISearchPage() {
 
     for (let i = 0; i < loadSteps.length; i++) {
       setLoadStep(i);
-      await new Promise(r => setTimeout(r, 400));
+      await new Promise(r => setTimeout(r, 260));
     }
 
-    // 1. Check state intelligence matching first
-    const stateMatch = resolveStateQuery(searchQuery);
-    if (stateMatch) {
-      setResult(stateMatch);
+    try {
+      const universalResult = await resolveUniversalQuery(searchQuery);
+      setResult(universalResult);
+    } catch (err) {
+      console.error('Universal query resolution error:', err);
+      const stateMatch = resolveStateQuery(searchQuery);
+      setResult(stateMatch || { ...searchResponses.default, query: searchQuery });
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // 2. Match other topical queries
-    const qLower = searchQuery.toLowerCase();
-    let key = 'default';
-    if (qLower.includes('geological') || qLower.includes('geology') || qLower.includes('korba') || qLower.includes('seam') || qLower.includes('reserve')) {
-      key = 'geological';
-    } else if (qLower.includes('parliamentary') || qLower.includes('parliament') || qLower.includes('lok sabha') || qLower.includes('rajya') || qLower.includes('query response') || qLower.includes('question')) {
-      key = 'parliamentary';
-    } else if (qLower.includes('safety') || qLower.includes('incident') || qLower.includes('fatal') || qLower.includes('accident') || qLower.includes('dgms')) {
-      key = 'safety';
-    } else if (qLower.includes('barkakana')) {
-      key = 'barkakana';
-    } else if (qLower.includes('subsidi') || qLower.includes('ecl') || qLower.includes('mcl') || qLower.includes('secl') || qLower.includes('ncl') || qLower.includes('wcl')) {
-      key = 'subsidiaries';
-    } else if (qLower.includes('underground') || qLower.includes('open') || qLower.includes('cast') || qLower.includes('method')) {
-      key = 'underground';
-    } else {
-      const matched = Object.keys(searchResponses).find(k => {
-        const r = searchResponses[k];
-        return r.query.toLowerCase().includes(qLower.slice(0, 15)) || qLower.includes(k);
-      });
-      if (matched) key = matched;
-    }
-
-    setResult({ ...searchResponses[key], query: searchQuery });
-    setLoading(false);
   };
 
   const handleClear = () => {
@@ -220,7 +198,14 @@ export default function AISearchPage() {
     return 'DOC-CIL-2024-00482';
   };
 
-  const handleDirectViewSource = (src: { id: number; name: string; page?: number; sheet?: string; row?: number }) => {
+  const handleDirectViewSource = (src: { id: number; name: string; page?: number; sheet?: string; row?: number; url?: string; isExternal?: boolean }) => {
+    // If it is a live Wikipedia or external reference, open directly
+    if (src.url && src.url.startsWith('http')) {
+      window.open(src.url, '_blank', 'noopener,noreferrer');
+      showToast(`Opening authentic source on Wikipedia (${src.name})...`, 'info');
+      return;
+    }
+
     const docId = mapDocNameToId(src.name);
     const pageParam = src.page ? `&page=${src.page}` : '';
     const sheetParam = src.sheet ? `&sheet=${encodeURIComponent(src.sheet)}` : '';
@@ -531,6 +516,88 @@ export default function AISearchPage() {
                   {result.answer}
                 </p>
 
+                {/* Wikipedia Live Knowledge Badge */}
+                {result.wikipediaRef && (
+                  <div style={{
+                    background: 'linear-gradient(90deg, rgba(59, 130, 246, 0.09), rgba(181, 101, 29, 0.08))',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                    borderRadius: 3,
+                    padding: '12px 16px',
+                    marginBottom: 16,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{
+                        width: 32, height: 32, borderRadius: 3, background: 'rgba(59, 130, 246, 0.15)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                      }}>
+                        <Globe size={17} color="var(--info)" />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span>Wikipedia Reference: {result.wikipediaRef.title}</span>
+                          <span className="badge badge-copper" style={{ fontSize: '0.625rem', padding: '1px 5px' }}>
+                            LIVE ENCYCLOPEDIA
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.71875rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                          {result.wikipediaRef.description || 'Verified open knowledge citation cross-referenced with CIL repository.'}
+                        </div>
+                      </div>
+                    </div>
+                    <a
+                      href={result.wikipediaRef.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-secondary"
+                      style={{ fontSize: '0.75rem', padding: '6px 12px', gap: 6, textDecoration: 'none', flexShrink: 0 }}
+                    >
+                      <Globe size={12} color="var(--info)" />
+                      <span>Open Wikipedia</span>
+                      <ExternalLink size={12} />
+                    </a>
+                  </div>
+                )}
+
+                {/* Quick Action Navigation Links */}
+                {result.actionLinks && result.actionLinks.length > 0 && (
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 8,
+                    marginBottom: 16,
+                    padding: '10px 14px',
+                    background: 'var(--surface-3)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 3,
+                    alignItems: 'center'
+                  }}>
+                    <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginRight: 4 }}>
+                      Quick Actions:
+                    </span>
+                    {result.actionLinks.map((link, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          if (link.url.startsWith('http')) {
+                            window.open(link.url, '_blank');
+                          } else {
+                            router.push(link.url);
+                          }
+                        }}
+                        className="btn btn-secondary"
+                        style={{ fontSize: '0.75rem', padding: '5px 10px', gap: 6 }}
+                      >
+                        <span>{link.label}</span>
+                        <ArrowRight size={11} />
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {/* Key Extracted Insight Card */}
                 <div style={{ 
                   background: 'rgba(74,127,165,0.08)', border: '1px solid rgba(74,127,165,0.25)',
@@ -698,16 +765,31 @@ export default function AISearchPage() {
                       }}>
                         {String(src.id).padStart(2, '0')}
                       </span>
-                      <FileText size={14} color="var(--text-muted)" />
+                      {src.url && src.url.startsWith('http') ? (
+                        <Globe size={15} color="var(--info)" />
+                      ) : (
+                        <FileText size={14} color="var(--text-muted)" />
+                      )}
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-                          {src.name}
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span>{src.name}</span>
+                          {src.url && src.url.startsWith('http') && (
+                            <span className="badge badge-copper" style={{ fontSize: '0.5625rem', padding: '1px 5px' }}>
+                              WIKIPEDIA REFERENCE
+                            </span>
+                          )}
                         </div>
                         <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                          {src.page ? `Page ${src.page}` : ''}
-                          {src.sheet ? ` Sheet: ${src.sheet}` : ''}
-                          {src.row ? ` · Row: ${src.row}` : ''}
-                          <span style={{ color: 'var(--verified)', marginLeft: 8 }}>✓ Audited & Ingested</span>
+                          {src.url && src.url.startsWith('http') ? (
+                            <span style={{ color: 'var(--info)' }}>Live Encyclopedia Citation · Open Knowledge Archive</span>
+                          ) : (
+                            <>
+                              {src.page ? `Page ${src.page}` : ''}
+                              {src.sheet ? ` Sheet: ${src.sheet}` : ''}
+                              {src.row ? ` · Row: ${src.row}` : ''}
+                              <span style={{ color: 'var(--verified)', marginLeft: 8 }}>✓ Audited & Ingested</span>
+                            </>
+                          )}
                         </div>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -727,9 +809,9 @@ export default function AISearchPage() {
                           className="btn btn-primary"
                           style={{ fontSize: '0.75rem', padding: '6px 12px', gap: 6 }}
                           onClick={() => handleDirectViewSource(src)}
-                          title="Open directly in Data Hub with document preview"
+                          title={src.url ? "Open live Wikipedia article in new tab" : "Open directly in Data Hub with document preview"}
                         >
-                          <span>View Source</span>
+                          <span>{src.url && src.url.startsWith('http') ? 'Open Wikipedia' : 'View Source'}</span>
                           <ExternalLink size={12} />
                         </button>
                       </div>

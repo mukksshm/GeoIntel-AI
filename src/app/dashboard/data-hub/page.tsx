@@ -11,7 +11,8 @@ import {
 import { Document } from '@/lib/mock-data';
 import { useDocuments } from '@/lib/documents-context';
 import { useToast } from '@/lib/toast';
-import { exportToDocx, exportToCsv } from '@/lib/export-utils';
+import { exportToDocx, exportToCsv, downloadFormatDoc } from '@/lib/export-utils';
+import { useAuth } from '@/lib/auth-context';
 
 function FileTypeIcon({ type }: { type: string }) {
   const s = { width: 14, height: 14 };
@@ -1352,7 +1353,8 @@ function DocumentDetailPanel({
 
 export default function DataHubPage() {
   const router = useRouter();
-  const { documents, addDocument, recentUploadedId, setRecentUploadedId } = useDocuments();
+  const { documents, addDocument, recentUploadedId, setRecentUploadedId, deleteDocument } = useDocuments();
+  const { isAdmin } = useAuth();
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [detailInitialTab, setDetailInitialTab] = useState<'intelligence' | 'preview'>('intelligence');
   const [detailTargetPage, setDetailTargetPage] = useState<number | undefined>(undefined);
@@ -1364,6 +1366,7 @@ export default function DataHubPage() {
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterType, setFilterType] = useState('All');
   const [searchQ, setSearchQ] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -1517,13 +1520,98 @@ export default function DataHubPage() {
       <div style={{ flex: 1, overflowY: selectedDoc ? 'hidden' : 'auto' }}>
         <div className="page-container fade-in">
           {/* Header */}
-          <div style={{ marginBottom: 24 }}>
-            <h1 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
-              Data Hub
-            </h1>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-              Bring scattered mining records into one searchable knowledge base.
-            </p>
+          <div style={{
+            marginBottom: 24,
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 16,
+          }}>
+            <div>
+              <h1 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                Data Hub
+              </h1>
+              <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                Bring scattered mining records into one searchable knowledge base.
+              </p>
+              {isAdmin && (
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 6,
+                  padding: '3px 10px', borderRadius: 20,
+                  background: 'rgba(181,101,29,0.15)',
+                  border: '1px solid rgba(181,101,29,0.4)',
+                  fontSize: '0.6875rem', fontWeight: 600, color: 'var(--copper)',
+                  letterSpacing: '0.03em',
+                }}>
+                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                    <circle cx="4" cy="4" r="4" fill="var(--copper)" opacity="0.9"/>
+                  </svg>
+                  ADMIN MODE — Delete Enabled
+                </div>
+              )}
+            </div>
+
+            {/* Right side: Download Format Doc Section */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <a
+                href="/api/download-format-doc"
+                download="GeoIntel_AI_Research_Dossier_Template.docx"
+                id="download-format-doc-btn"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '10px 18px',
+                  background: 'linear-gradient(135deg, var(--surface-2) 0%, rgba(181, 101, 29, 0.08) 100%)',
+                  border: '1px solid rgba(181, 101, 29, 0.35)',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  textDecoration: 'none',
+                  color: 'var(--text-primary)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.borderColor = 'var(--copper)';
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
+                  (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 14px rgba(181,101,29,0.25)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(181, 101, 29, 0.35)';
+                  (e.currentTarget as HTMLElement).style.transform = 'none';
+                  (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.25)';
+                }}
+                onClick={() => {
+                  showToast('Downloading GeoIntel_AI_Research_Dossier_Template.docx from trial doc format...', 'success');
+                }}
+                title="Download official dossier template document (.docx) from trial doc format folder"
+              >
+                <div style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 6,
+                  background: 'rgba(181, 101, 29, 0.15)',
+                  border: '1px solid rgba(181, 101, 29, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--copper)',
+                  flexShrink: 0,
+                }}>
+                  <FileText size={18} />
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-primary)' }}>
+                    Download Format Doc
+                    <Download size={13} color="var(--copper)" />
+                  </div>
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                    Official Template (.DOCX) &bull; trial doc format
+                  </div>
+                </div>
+              </a>
+            </div>
           </div>
 
           {/* Upload zone */}
@@ -1657,7 +1745,7 @@ export default function DataHubPage() {
                   <th>Status</th>
                   <th>Confidence</th>
                   <th>Last Updated</th>
-                  <th></th>
+                  <th>{isAdmin ? 'Actions' : ''}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1748,14 +1836,54 @@ export default function DataHubPage() {
                           {doc.lastUpdated}
                         </td>
                         <td>
-                          <button
-                            className="btn btn-ghost"
-                            style={{ padding: '4px 8px', fontSize: '0.75rem' }}
-                            onClick={e => { e.stopPropagation(); setSelectedDoc(doc); }}
-                          >
-                            <Eye size={12} />
-                            View
-                          </button>
+                          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                            <button
+                              className="btn btn-ghost"
+                              style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                              onClick={e => { e.stopPropagation(); setSelectedDoc(doc); }}
+                            >
+                              <Eye size={12} />
+                              View
+                            </button>
+                            {isAdmin && (
+                              confirmDeleteId === doc.id ? (
+                                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+                                  <button
+                                    className="btn btn-ghost"
+                                    style={{ padding: '4px 8px', fontSize: '0.6875rem', color: 'var(--alert)', borderColor: 'rgba(184,74,74,0.4)', border: '1px solid rgba(184,74,74,0.4)', borderRadius: 3 }}
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      deleteDocument(doc.id);
+                                      if (selectedDoc?.id === doc.id) setSelectedDoc(null);
+                                      setConfirmDeleteId(null);
+                                      showToast(`"${doc.name}" deleted from Data Hub.`, 'info');
+                                    }}
+                                    title="Confirm delete"
+                                  >
+                                    Confirm
+                                  </button>
+                                  <button
+                                    className="btn btn-ghost"
+                                    style={{ padding: '4px 6px', fontSize: '0.6875rem', color: 'var(--text-muted)' }}
+                                    onClick={e => { e.stopPropagation(); setConfirmDeleteId(null); }}
+                                    title="Cancel delete"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  className="btn btn-ghost"
+                                  style={{ padding: '4px 8px', fontSize: '0.75rem', color: 'var(--alert)', opacity: 0.8 }}
+                                  onClick={e => { e.stopPropagation(); setConfirmDeleteId(doc.id); }}
+                                  title="Admin: Delete this document from Data Hub"
+                                >
+                                  <X size={12} />
+                                  Delete
+                                </button>
+                              )
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
