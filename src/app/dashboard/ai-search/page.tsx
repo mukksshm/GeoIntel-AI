@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { searchResponses, SearchResponse, resolveStateQuery } from '@/lib/mock-data';
 import { resolveUniversalQuery } from '@/lib/intelligence-engine';
+import { useDocuments } from '@/lib/documents-context';
 import { useToast } from '@/lib/toast';
 import { exportToPdf, exportToDocx } from '@/lib/export-utils';
 import SourceTraceabilityModal, { SourceTraceItem } from '@/components/SourceTraceabilityModal';
@@ -49,6 +50,7 @@ const canonicalQueries = [
 
 export default function AISearchPage() {
   const router = useRouter();
+  const { documents } = useDocuments();
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadStep, setLoadStep] = useState(0);
@@ -158,7 +160,7 @@ export default function AISearchPage() {
     }
 
     try {
-      const universalResult = await resolveUniversalQuery(searchQuery);
+      const universalResult = await resolveUniversalQuery(searchQuery, documents);
       setResult(universalResult);
     } catch (err) {
       console.error('Universal query resolution error:', err);
@@ -186,6 +188,15 @@ export default function AISearchPage() {
   }, []);
 
   const mapDocNameToId = (name: string): string => {
+    if (!name) return 'DOC-CIL-2024-00482';
+    const found = documents.find(
+      d => d.id.toLowerCase() === name.toLowerCase() ||
+           d.name.toLowerCase() === name.toLowerCase() ||
+           d.name.toLowerCase().includes(name.toLowerCase()) ||
+           name.toLowerCase().includes(d.name.toLowerCase())
+    );
+    if (found) return found.id;
+
     const n = name.toLowerCase();
     if (n.includes('coal_directory')) return 'DOC-CIL-2024-00482';
     if (n.includes('production_statistics') || n.includes('ccl')) return 'DOC-CCL-2024-00619';

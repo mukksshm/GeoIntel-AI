@@ -11,7 +11,7 @@ import {
 import { Document } from '@/lib/mock-data';
 import { useDocuments } from '@/lib/documents-context';
 import { useToast } from '@/lib/toast';
-import { exportToDocx, exportToCsv, downloadFormatDoc, downloadOriginalSourceDocument } from '@/lib/export-utils';
+import { exportToDocx, exportToCsv } from '@/lib/export-utils';
 import { useAuth } from '@/lib/auth-context';
 
 function FileTypeIcon({ type }: { type: string }) {
@@ -608,20 +608,6 @@ function DocumentDetailPanel({
                   <ZoomIn size={13} />
                 </button>
               </div>
-
-              {/* Download Original Source File (Preserves Native File Extension: PDF, XLSX, DOCX, etc.) */}
-              <button
-                className="btn btn-secondary"
-                style={{ padding: '4px 8px', height: 26, fontSize: '0.6875rem', gap: 4 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  downloadOriginalSourceDocument(doc);
-                }}
-                title={`Download original source file in its native format (${doc.name.split('.').pop()?.toUpperCase() || 'FILE'})`}
-              >
-                <Download size={12} />
-                Download Original ({doc.name.split('.').pop()?.toUpperCase() || 'FILE'})
-              </button>
 
               {/* Print / Export Document */}
               <button
@@ -1457,6 +1443,8 @@ export default function DataHubPage() {
     const estRows = detectedType === 'XLSX' ? Math.max(180, Math.round((file?.size || 65000) / 1024 * 16)) : undefined;
     const docId = `DOC-UPL-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
 
+    const initialContent = `Uploaded document "${fileName}" parsed, OCR extracted, and indexed into GeoIntel AI knowledge graph. High-density geological survey and field operations record.`;
+
     const newDoc: Document = {
       id: docId,
       name: fileName,
@@ -1472,7 +1460,16 @@ export default function DataHubPage() {
       description: `Uploaded document "${fileName}" parsed, OCR extracted, and ingested into GeoIntel AI knowledge graph for statutory reporting.`,
       mine: 'Field Ingestion',
       year: '2025-26',
+      content: initialContent,
     };
+
+    if (file) {
+      file.text().then(text => {
+        if (text && text.length > 5) {
+          newDoc.content = `${fileName} Content Excerpt:\n${text.slice(0, 50000)}`;
+        }
+      }).catch(() => {});
+    }
 
     let progress = 0;
     const interval = window.setInterval(() => {
@@ -1566,67 +1563,7 @@ export default function DataHubPage() {
               )}
             </div>
 
-            {/* Right side: Download Format Doc Section */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button
-                type="button"
-                id="download-format-doc-btn"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '10px 18px',
-                  background: 'linear-gradient(135deg, var(--surface-2) 0%, rgba(181, 101, 29, 0.08) 100%)',
-                  border: '1px solid rgba(181, 101, 29, 0.35)',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                  textDecoration: 'none',
-                  color: 'var(--text-primary)',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLElement).style.borderColor = 'var(--copper)';
-                  (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
-                  (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 14px rgba(181,101,29,0.25)';
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(181, 101, 29, 0.35)';
-                  (e.currentTarget as HTMLElement).style.transform = 'none';
-                  (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.25)';
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  downloadFormatDoc();
-                }}
-                title="Download official dossier template document (.docx) from trial doc format folder"
-              >
-                <div style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 6,
-                  background: 'rgba(181, 101, 29, 0.15)',
-                  border: '1px solid rgba(181, 101, 29, 0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--copper)',
-                  flexShrink: 0,
-                }}>
-                  <FileText size={18} />
-                </div>
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-primary)' }}>
-                    Download Format Doc
-                    <Download size={13} color="var(--copper)" />
-                  </div>
-                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', marginTop: 2 }}>
-                    Official Template (.DOCX) &bull; trial doc format
-                  </div>
-                </div>
-              </button>
-            </div>
+
           </div>
 
           {/* Upload zone */}

@@ -115,6 +115,7 @@ export type Document = {
   description: string;
   mine?: string;
   year?: string;
+  content?: string;
 };
 
 export const documents: Document[] = [

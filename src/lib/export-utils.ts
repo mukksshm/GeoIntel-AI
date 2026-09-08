@@ -81,49 +81,6 @@ export function downloadFormatDoc(customFilename?: string) {
   showToast(`Downloaded format doc template: ${cleanFilename}`, 'success');
 }
 
-/**
- * Download an original source document preserving its native file extension and MIME type.
- * PDF -> .pdf, XLSX -> .xlsx, DOCX -> .docx, CSV -> .csv, JPG -> .jpg, PNG -> .png
- */
-export function downloadOriginalSourceDocument(doc: { name: string; type?: string }) {
-  if (typeof window === 'undefined') return;
-
-  const fileName = doc.name;
-  const ext = fileName.split('.').pop()?.toLowerCase() || 'pdf';
-
-  let mimeType = 'application/pdf';
-  if (ext === 'docx' || ext === 'doc') {
-    mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-  } else if (ext === 'xlsx' || ext === 'xls') {
-    mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-  } else if (ext === 'csv') {
-    mimeType = 'text/csv';
-  } else if (ext === 'jpg' || ext === 'jpeg') {
-    mimeType = 'image/jpeg';
-  } else if (ext === 'png') {
-    mimeType = 'image/png';
-  } else if (ext === 'pdf') {
-    mimeType = 'application/pdf';
-  }
-
-  // Fetch or trigger binary download for original file
-  fetch(`/trial-doc-format/${encodeURIComponent(fileName)}`)
-    .then(res => {
-      if (res.ok) return res.blob();
-      throw new Error('File not found in local asset store');
-    })
-    .then(blob => {
-      triggerBrowserDownload(blob, fileName);
-      showToast(`Downloaded original source file: ${fileName}`, 'success');
-    })
-    .catch(() => {
-      // Fallback: serve generated binary placeholder preserving original MIME type
-      const sampleText = `%PDF-1.4 or Binary Data for ${fileName}\nFormat: ${ext.toUpperCase()}\nMIME: ${mimeType}\nSource: GeoIntel AI Enterprise Data Lake`;
-      const blob = new Blob([sampleText], { type: mimeType });
-      triggerBrowserDownload(blob, fileName);
-      showToast(`Downloaded original file: ${fileName} (${ext.toUpperCase()})`, 'success');
-    });
-}
 
 /**
  * Export a document dossier as a 100% valid, native Microsoft Word .docx binary file.
