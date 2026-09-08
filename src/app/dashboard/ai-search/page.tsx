@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   Search, ChevronRight, ExternalLink, CheckCircle, ArrowRight, 
-  TrendingUp, FileText, Download, ShieldCheck, RefreshCw, X, Copy
+  TrendingUp, FileText, Download, ShieldCheck, RefreshCw, X, Copy,
+  Layers, Award, Zap, Database
 } from 'lucide-react';
-import { searchResponses, SearchResponse } from '@/lib/mock-data';
+import { searchResponses, SearchResponse, resolveStateQuery } from '@/lib/mock-data';
 import { useToast } from '@/lib/toast';
 import { exportToPdf, exportToDocx } from '@/lib/export-utils';
 import SourceTraceabilityModal, { SourceTraceItem } from '@/components/SourceTraceabilityModal';
@@ -45,6 +47,7 @@ const canonicalQueries = [
 ];
 
 export default function AISearchPage() {
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadStep, setLoadStep] = useState(0);
@@ -153,15 +156,21 @@ export default function AISearchPage() {
       await new Promise(r => setTimeout(r, 400));
     }
 
-    // Match query to response
+    // 1. Check state intelligence matching first
+    const stateMatch = resolveStateQuery(searchQuery);
+    if (stateMatch) {
+      setResult(stateMatch);
+      setLoading(false);
+      return;
+    }
+
+    // 2. Match other topical queries
     const qLower = searchQuery.toLowerCase();
     let key = 'default';
     if (qLower.includes('geological') || qLower.includes('geology') || qLower.includes('korba') || qLower.includes('seam') || qLower.includes('reserve')) {
       key = 'geological';
     } else if (qLower.includes('parliamentary') || qLower.includes('parliament') || qLower.includes('lok sabha') || qLower.includes('rajya') || qLower.includes('query response') || qLower.includes('question')) {
       key = 'parliamentary';
-    } else if (qLower.includes('jharkhand') || qLower.includes('bccl') || qLower.includes('ccl') || qLower.includes('dhanbad') || qLower.includes('bokaro')) {
-      key = 'jharkhand';
     } else if (qLower.includes('safety') || qLower.includes('incident') || qLower.includes('fatal') || qLower.includes('accident') || qLower.includes('dgms')) {
       key = 'safety';
     } else if (qLower.includes('barkakana')) {
@@ -185,6 +194,54 @@ export default function AISearchPage() {
   const handleClear = () => {
     setQuery('');
     setResult(null);
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get('q');
+      if (q && q.trim()) {
+        setQuery(q);
+        handleSearch(q);
+      }
+    }
+  }, []);
+
+  const mapDocNameToId = (name: string): string => {
+    const n = name.toLowerCase();
+    if (n.includes('coal_directory')) return 'DOC-CIL-2024-00482';
+    if (n.includes('production_statistics') || n.includes('ccl')) return 'DOC-CCL-2024-00619';
+    if (n.includes('annual_report_mcl') || n.includes('mcl')) return 'DOC-MCL-2024-00328';
+    if (n.includes('geological_assessment') || n.includes('korba_block')) return 'DOC-CMD-2023-00512';
+    if (n.includes('safety_reports') || n.includes('compilation')) return 'DOC-CMD-2025-00741';
+    if (n.includes('korba_production')) return 'DOC-KOR-2025-00183';
+    if (n.includes('environmental_compliance') || n.includes('ecl')) return 'DOC-ECL-2025-00204';
+    if (n.includes('barkakana')) return 'DOC-CCL-2024-00619';
+    return 'DOC-CIL-2024-00482';
+  };
+
+  const handleDirectViewSource = (src: { id: number; name: string; page?: number; sheet?: string; row?: number }) => {
+    const docId = mapDocNameToId(src.name);
+    const pageParam = src.page ? `&page=${src.page}` : '';
+    const sheetParam = src.sheet ? `&sheet=${encodeURIComponent(src.sheet)}` : '';
+    const rowParam = src.row ? `&row=${src.row}` : '';
+
+    // Detect state from query or active result so Data Hub highlights the exact state row
+    let stateParam = '';
+    const qLower = (query || result?.query || result?.insight.label || '').toLowerCase();
+    const states = [
+      'jharkhand', 'odisha', 'orissa', 'chhattisgarh', 'chattisgarh', 
+      'madhya pradesh', 'madhyapradesh', 'west bengal', 'bengal', 
+      'maharashtra', 'telangana', 'assam', 'andhra pradesh', 'gujarat', 
+      'rajasthan', 'bihar', 'uttar pradesh', 'tamil nadu', 'punjab', 'haryana', 'karnataka'
+    ];
+    const matchedState = states.find(s => qLower.includes(s));
+    if (matchedState) {
+      stateParam = `&state=${encodeURIComponent(matchedState)}`;
+    }
+
+    showToast(`Navigating directly to source document (${src.name})...`, 'info');
+    router.push(`/dashboard/data-hub?doc=${encodeURIComponent(docId)}&preview=true${pageParam}${sheetParam}${rowParam}${stateParam}`);
   };
 
   const handleOpenSourceForCard = (src: { id: number; name: string; page?: number; sheet?: string; row?: number }) => {
@@ -282,6 +339,45 @@ export default function AISearchPage() {
               </>
             )}
           </button>
+        </div>
+
+        {/* State Intelligence Quick Jump Pills */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+          <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, marginRight: 4 }}>
+            <Zap size={11} color="var(--copper)" /> State Intelligence:
+          </span>
+          {[
+            { label: 'Odisha (Rank #1)', q: 'Show coal production and reserves for Odisha in 2024' },
+            { label: 'Jharkhand (CCL+BCCL)', q: 'Show coal production data for Jharkhand in 2024' },
+            { label: 'Chhattisgarh (SECL)', q: 'Show coal production and reserves for Chhattisgarh' },
+            { label: 'Madhya Pradesh (NCL)', q: 'Show coal production and reserves for Madhya Pradesh' },
+            { label: 'West Bengal (Raniganj)', q: 'Show coal production data for West Bengal' },
+            { label: 'Maharashtra (WCL)', q: 'Show coal production data for Maharashtra' },
+            { label: 'Telangana (SCCL)', q: 'Show coal production data for Telangana in 2024' },
+            { label: 'Assam (Makum)', q: 'Show coal production and reserves for Assam and North East' },
+            { label: 'Gujarat (GMDC)', q: 'Show coal and lignite production data for Gujarat in 2024' },
+            { label: 'Rajasthan (RSMML)', q: 'Show coal and lignite mining data for Rajasthan in 2024' },
+            { label: 'Bihar (Pirpainti)', q: 'Show coal reserves, exploration and consumption for Bihar' },
+            { label: 'Uttar Pradesh (Singrauli)', q: 'Show coal production, reserves and consumption for Uttar Pradesh' },
+            { label: 'Tamil Nadu (Neyveli)', q: 'Show coal and lignite data for Tamil Nadu in 2024' },
+          ].map((st, i) => (
+            <button
+              key={i}
+              type="button"
+              className="btn btn-ghost"
+              style={{
+                fontSize: '0.6875rem', padding: '3px 8px', borderRadius: 2,
+                background: 'var(--surface-2)', border: '1px solid var(--border)',
+                color: 'var(--text-secondary)',
+              }}
+              onClick={() => {
+                setQuery(st.q);
+                handleSearch(st.q);
+              }}
+            >
+              {st.label}
+            </button>
+          ))}
         </div>
 
         {/* Canonical Example Queries (All 5 explicitly listed) */}
@@ -441,6 +537,7 @@ export default function AISearchPage() {
                   borderRadius: 2, padding: '14px 18px',
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   gap: 16,
+                  marginBottom: 16,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                     <div style={{
@@ -475,10 +572,90 @@ export default function AISearchPage() {
                     </button>
                   )}
                 </div>
+
+                {/* Elaborated KPI Cards Grid */}
+                {result.kpiCards && result.kpiCards.length > 0 && (
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: 10,
+                    marginBottom: 16,
+                  }}>
+                    {result.kpiCards.map((kpi, idx) => (
+                      <div key={idx} style={{
+                        background: 'var(--surface-3)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 3,
+                        padding: '12px 14px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                      }}>
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          {kpi.label}
+                        </div>
+                        <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--copper)' }}>
+                          {kpi.value}
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
+                          {kpi.sub && <span style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>{kpi.sub}</span>}
+                          {kpi.trend && (
+                            <span className="badge badge-verified" style={{ fontSize: '0.625rem', padding: '1px 6px' }}>
+                              {kpi.trend}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Elaborated Intelligence Dossier & Operational Breakdown */}
+                {result.detailedSections && result.detailedSections.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Layers size={14} color="var(--copper)" />
+                      <span className="text-label" style={{ color: 'var(--text-primary)', letterSpacing: '0.05em' }}>
+                        Elaborated Intelligence Dossier & Operational Breakdown
+                      </span>
+                    </div>
+                    {result.detailedSections.map((sec, idx) => (
+                      <div key={idx} style={{
+                        background: 'var(--surface-3)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 3,
+                        padding: '14px 16px',
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {sec.title}
+                          </span>
+                          {sec.badge && (
+                            <span className="badge badge-copper" style={{ fontSize: '0.625rem', padding: '2px 8px' }}>
+                              {sec.badge}
+                            </span>
+                          )}
+                        </div>
+                        <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: sec.points?.length ? 10 : 0 }}>
+                          {sec.content}
+                        </p>
+                        {sec.points && sec.points.length > 0 && (
+                          <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {sec.points.map((pt, pidx) => (
+                              <li key={pidx} style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>
+                                {pt}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Source Evidence List (Cross-Validated 3 Sources) */}
+            {/* Source Evidence List (Cross-Validated Sources with Direct View Source) */}
             <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 3, overflow: 'hidden' }}>
               <div 
                 style={{ 
@@ -495,7 +672,7 @@ export default function AISearchPage() {
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Click to view source coordinate</span>
+                  <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Click 'View Source' to inspect directly</span>
                   <ChevronRight size={14} style={{ color: 'var(--text-muted)', transform: expandedEvidence ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
                 </div>
               </div>
@@ -507,16 +684,12 @@ export default function AISearchPage() {
                       key={src.id} 
                       style={{
                         display: 'flex', alignItems: 'center', gap: 12,
-                        padding: '10px 14px',
+                        padding: '12px 14px',
                         background: 'var(--surface-3)',
                         border: '1px solid var(--border)',
                         borderRadius: 2,
-                        cursor: 'pointer',
                         transition: 'all 0.15s',
                       }}
-                      onClick={() => handleOpenSourceForCard(src)}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--copper)'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'}
                     >
                       <span style={{ 
                         width: 24, height: 24, background: 'var(--coal-700)', 
@@ -534,12 +707,31 @@ export default function AISearchPage() {
                           {src.page ? `Page ${src.page}` : ''}
                           {src.sheet ? ` Sheet: ${src.sheet}` : ''}
                           {src.row ? ` · Row: ${src.row}` : ''}
-                          <span style={{ color: 'var(--verified)', marginLeft: 8 }}>✓ Audited</span>
+                          <span style={{ color: 'var(--verified)', marginLeft: 8 }}>✓ Audited & Ingested</span>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.6875rem', color: 'var(--copper)' }}>
-                        <span>View Source</span>
-                        <ExternalLink size={12} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <button
+                          className="btn btn-ghost"
+                          style={{ fontSize: '0.6875rem', padding: '4px 8px', color: 'var(--text-secondary)' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenSourceForCard(src);
+                          }}
+                          title="Open 5-level cryptographic traceability chain"
+                        >
+                          <ShieldCheck size={12} color="var(--verified)" />
+                          5-Level Trace
+                        </button>
+                        <button
+                          className="btn btn-primary"
+                          style={{ fontSize: '0.75rem', padding: '6px 12px', gap: 6 }}
+                          onClick={() => handleDirectViewSource(src)}
+                          title="Open directly in Data Hub with document preview"
+                        >
+                          <span>View Source</span>
+                          <ExternalLink size={12} />
+                        </button>
                       </div>
                     </div>
                   ))}
