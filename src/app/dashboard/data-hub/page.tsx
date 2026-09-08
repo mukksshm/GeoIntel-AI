@@ -11,7 +11,7 @@ import {
 import { Document } from '@/lib/mock-data';
 import { useDocuments } from '@/lib/documents-context';
 import { useToast } from '@/lib/toast';
-import { exportToDocx, exportToCsv, downloadFormatDoc } from '@/lib/export-utils';
+import { exportToDocx, exportToCsv, downloadFormatDoc, downloadOriginalSourceDocument } from '@/lib/export-utils';
 import { useAuth } from '@/lib/auth-context';
 
 function FileTypeIcon({ type }: { type: string }) {
@@ -608,6 +608,20 @@ function DocumentDetailPanel({
                   <ZoomIn size={13} />
                 </button>
               </div>
+
+              {/* Download Original Source File (Preserves Native File Extension: PDF, XLSX, DOCX, etc.) */}
+              <button
+                className="btn btn-secondary"
+                style={{ padding: '4px 8px', height: 26, fontSize: '0.6875rem', gap: 4 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  downloadOriginalSourceDocument(doc);
+                }}
+                title={`Download original source file in its native format (${doc.name.split('.').pop()?.toUpperCase() || 'FILE'})`}
+              >
+                <Download size={12} />
+                Download Original ({doc.name.split('.').pop()?.toUpperCase() || 'FILE'})
+              </button>
 
               {/* Print / Export Document */}
               <button
@@ -1327,11 +1341,11 @@ function DocumentDetailPanel({
         boxShadow: '0 -4px 16px rgba(0,0,0,0.3)',
       }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button className="btn btn-primary" onClick={() => showToast(`Intelligence report generated for ${doc.name}.`, 'success')}>
+          <button className="btn btn-primary" onClick={e => { e.stopPropagation(); showToast(`Intelligence report generated for ${doc.name}.`, 'success'); }}>
             <FileText size={13} />
             Generate Intelligence Briefing
           </button>
-          <button className="btn btn-secondary" onClick={handleExportDoc} title="Download document dossier directly to your computer">
+          <button className="btn btn-secondary" onClick={e => { e.stopPropagation(); handleExportDoc(); }} title="Download document dossier directly to your computer">
             <Download size={13} />
             Export Dossier (.docx)
           </button>
@@ -1554,9 +1568,8 @@ export default function DataHubPage() {
 
             {/* Right side: Download Format Doc Section */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <a
-                href="/api/download-format-doc"
-                download="GeoIntel_AI_Research_Dossier_Template.docx"
+              <button
+                type="button"
                 id="download-format-doc-btn"
                 style={{
                   display: 'flex',
@@ -1582,8 +1595,10 @@ export default function DataHubPage() {
                   (e.currentTarget as HTMLElement).style.transform = 'none';
                   (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.25)';
                 }}
-                onClick={() => {
-                  showToast('Downloading GeoIntel_AI_Research_Dossier_Template.docx from trial doc format...', 'success');
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  downloadFormatDoc();
                 }}
                 title="Download official dossier template document (.docx) from trial doc format folder"
               >
@@ -1610,7 +1625,7 @@ export default function DataHubPage() {
                     Official Template (.DOCX) &bull; trial doc format
                   </div>
                 </div>
-              </a>
+              </button>
             </div>
           </div>
 
@@ -1782,7 +1797,7 @@ export default function DataHubPage() {
                           borderLeft: isRecent ? '3px solid var(--copper)' : undefined,
                           transition: 'all 0.3s ease',
                         }}
-                        onClick={() => setSelectedDoc(doc)}
+                        onClick={e => { e.stopPropagation(); setSelectedDoc(doc); }}
                       >
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
