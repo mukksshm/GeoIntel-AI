@@ -264,28 +264,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Credentials reminder */}
-        <div style={{
-          marginTop: 24,
-          padding: '12px 14px',
-          background: 'rgba(181, 101, 29, 0.08)',
-          border: '1px solid rgba(181, 101, 29, 0.25)',
-          borderRadius: 4,
-          fontSize: '0.75rem',
-          lineHeight: 1.5,
-        }}>
-          <div style={{ fontWeight: 600, color: 'var(--copper)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Shield size={13} />
-            Data Hub Deletion Authorization Credentials:
-          </div>
-          <div style={{ color: 'var(--text-secondary)' }}>
-            <strong>Admin ID:</strong> <code style={{ color: 'var(--text-primary)', background: 'rgba(0,0,0,0.3)', padding: '1px 5px', borderRadius: 3 }}>admin@coalindia.in</code><br />
-            <strong>Password:</strong> <code style={{ color: 'var(--text-primary)', background: 'rgba(0,0,0,0.3)', padding: '1px 5px', borderRadius: 3 }}>admin123</code>
-          </div>
-          <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: 4 }}>
-            Only Admin credentials have permission to delete files from the Data Hub.
-          </div>
-        </div>
+
 
         <div style={{ 
           marginTop: 32,
